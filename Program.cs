@@ -15,6 +15,8 @@ namespace Produttore_e_consumatore
 
         static int queueSize = 6;
 
+        public static int nSeconds = 1;
+
         public static Producer producer = new Producer();
 
         public static Consumer consumer = new Consumer();
@@ -42,18 +44,20 @@ namespace Produttore_e_consumatore
                 threadConsumer.Join();
                 threadProducer.Join();
 
+                Console.WriteLine(" ");
+
                 PrintLogsTable();
 
-                Console.WriteLine("il totale dei numeri prodotti è: " + producer.GetCount());
-                Console.WriteLine("il totale dei numeri prodotti è: " + consumer.GetCountNumberGenerator());
+                Console.WriteLine("produttore: il totale dei numeri prodotti è: " + producer.GetCount());
+                Console.WriteLine("produttore: sono stati prodotti : " + producer.GetCountNumberGenerator() + " numeri");
 
-                Console.WriteLine("il totale dei numeri consumati è: " + consumer.GetCount());
-                Console.WriteLine("il totale dei numeri consumati è: " + consumer.GetCountNumberGenerator());
+                Console.WriteLine("consumatore: il totale dei numeri consumati è: " + consumer.GetCount());
+                Console.WriteLine("consumatore: sono stati consumati : " + consumer.GetCountNumberGenerator() + " numeri");
 
-                var result = lQueue.GetCount();
-                const string message = "il totale dei numeri presenti nella coda è: ";
-                Console.WriteLine(message + result.Count);
-                Console.WriteLine("il totale della coda è: " + result.CountNumberGenerator);
+                var remainResultQueue = lQueue.GetCount();
+                Console.WriteLine("coda: il totale dei numeri rimasti nella coda è: " + remainResultQueue.Count);
+                Console.WriteLine("coda: sono rimasti : " + remainResultQueue.CountNumberGenerator + " numeri");
+
 
             }
             catch (Exception e)
@@ -68,6 +72,8 @@ namespace Produttore_e_consumatore
 
         public static void PrintLogsTable()
         {
+            Console.WriteLine(" ");
+
             var table = new Table();
 
             table.Border = TableBorder.Rounded;
@@ -95,8 +101,9 @@ namespace Produttore_e_consumatore
         {
             DateTime start = DateTime.Now;
             int countLoop = 0;
-            while (DateTime.Now < start.AddSeconds(5))
+            while (DateTime.Now < start.AddSeconds(nSeconds))
             {
+                Console.Write("p");
                 AddLog("Produttore", $"Sto producendo numeri (loop {countLoop})", countThreadWaiting, lQueue.Count, "green");
                 countLoop++;
                 try
@@ -123,6 +130,8 @@ namespace Produttore_e_consumatore
                         countThreadWaiting--;
                         mySemaphore.Release();
                     }
+
+                    //Thread.Sleep(150);
                 }
                 catch (Exception e)
                 {
@@ -132,19 +141,20 @@ namespace Produttore_e_consumatore
                 }
             }
 
-            AddLog("Produttore", "Ho fatto 10 secondi e finito di produrre numeri", countThreadWaiting, lQueue.Count, "green");
+            AddLog("Produttore", $"Ho fatto {nSeconds} secondi e finito di produrre numeri", countThreadWaiting, lQueue.Count, "green");
         }
 
         public static void ConsumeNumber()
         {
             DateTime start = DateTime.Now;
             var countLoop = 0;
-            while (DateTime.Now < start.AddSeconds(5))
+            while (DateTime.Now < start.AddSeconds(nSeconds))
             {
                 AddLog("Consumatore", $"Sto consumando dati (loop {countLoop})", countThreadWaiting, lQueue.Count, "yellow");
                 countLoop++;
                 try
                 {
+                    Console.Write("c");
                     if ((lQueue.Count) == 0)
                     {
                         AddLog("Consumatore", $"Mi addormento", countThreadWaiting, lQueue.Count, "yellow");
@@ -167,6 +177,8 @@ namespace Produttore_e_consumatore
                         countThreadWaiting--;
                         mySemaphore.Release();
                     }
+
+                    //Thread.Sleep(150);
                 }
                 catch (Exception e)
                 {
@@ -176,7 +188,7 @@ namespace Produttore_e_consumatore
                 }
             }
 
-            AddLog("Consumatore", "Ho fatto 10 secondi e finito di consumare dati", countThreadWaiting, lQueue.Count, "yellow");
+            AddLog("Consumatore", $"Ho fatto {nSeconds} secondi e finito di consumare dati", countThreadWaiting, lQueue.Count, "yellow");
         }
 
     }
