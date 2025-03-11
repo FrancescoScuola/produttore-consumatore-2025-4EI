@@ -1,17 +1,24 @@
-﻿namespace Produttore_e_consumatore
-{    
+﻿using System.Diagnostics;
+using System.Threading;
+
+namespace Produttore_e_consumatore
+{
     internal class Program
     {
-        static Semaphore consumerSemaphore = new Semaphore(7, 7);
-        
+        static SemaphoreSlim mySemaphore = new SemaphoreSlim(1, 1);
+
+        static int maxCount = 1;
+
+        static int queueSize = 6;
+
         static Producer producer = new Producer();
-        
+
         static Consumer consumer = new Consumer();
 
-        public static LimitedQueue<int> lQueue = new LimitedQueue<int>(6);
+        public static LimitedQueue<int> lQueue = new LimitedQueue<int>(queueSize);
 
         static void Main(string[] args)
-        {            
+        {
             Thread threadProducer = new Thread(ProduceNumber);
             Thread threadConsumer = new Thread(ConsumeNumber);
 
@@ -20,7 +27,7 @@
 
             threadConsumer.Join();
             threadProducer.Join();
-           
+
 
             Console.WriteLine("il totale dei numeri prodotti è: " + producer.GetCount());
             Console.WriteLine("il totale dei numeri prodotti è: " + consumer.GetCountNumberGenerator());
@@ -41,17 +48,27 @@
             DateTime start = DateTime.Now;
             while (DateTime.Now < start.AddSeconds(5))
             {
-                if ((lQueue.Count) < 6)
-                {
-
+                try {
+                    if ((lQueue.Count) >= queueSize)
+                    {
+                        mySemaphore.Wait();
+                    }
+                    Console.WriteLine("produttore: ci sono" + lQueue.Count);
                     lQueue.Enqueue(producer.GiveMeNumber());
+                    if (mySemaphore.CurrentCount < maxCount)
+                    {
+                        mySemaphore.Release();
+                    }
+                }
+                catch (Exception e)
+                {
+                    Debugger.Break();
+                    Console.WriteLine(e.Message);
+                }
+               
 
-                }
-                else {
-                    Console.WriteLine("il produttore sta consumando CPU");
-                }
             }
-            
+
             Console.WriteLine("ho fatto 10 secondi e finito di produrre numeri");
         }
 
@@ -60,13 +77,27 @@
             DateTime start = DateTime.Now;
             while (DateTime.Now < start.AddSeconds(5))
             {
-                if ((lQueue.Count) > 0)
+                try
                 {
+                    if ((lQueue.Count) == 0)
+                    {
+                        mySemaphore.Wait();
+                    }
+                    Console.WriteLine("consumatore: ci sono" + lQueue.Count);
                     consumer.ConsumeNumber(lQueue.Dequeue());
+                    if (mySemaphore.CurrentCount < maxCount)
+                    {
+                        mySemaphore.Release();
+                    }
                 }
-                else { 
-                    Console.WriteLine("il consumatore sta consumando CPU");
+                catch (Exception e)
+                {
+                    Debugger.Break();
+                    Console.WriteLine(e.Message);
                 }
+
+
+
             }
             Console.WriteLine("ho fatto 10 secondi e finito di consumare dati");
         }
@@ -83,7 +114,7 @@
         {
             int i = _random.Next(100);
             Console.WriteLine("ho prodotto il numero: " + i);
-            _count = _count +i;
+            _count = _count + i;
             _countNumberGenerator++;
             return i;
         }
@@ -122,16 +153,17 @@
     {
         public int Count { get; set; }
         public int CountNumberGenerator { get; set; }
-        
-    }   
+
+    }
     class LimitedQueue<T> : Queue<int>
     {
         private int _maxSize;
-        
+
         public LimitedQueueCountResult GetCount()
         {
             LimitedQueueCountResult result = new LimitedQueueCountResult();
-            while (this.Count != 0) {                
+            while (this.Count != 0)
+            {
                 var isSuccess = this.TryDequeue(out int t);
                 // var t = this.Dequeue();
                 result.CountNumberGenerator++;
