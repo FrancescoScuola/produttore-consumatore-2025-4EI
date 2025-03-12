@@ -7,7 +7,8 @@ namespace Produttore_e_consumatore
     {
         public static readonly long StartTimeStamp = Stopwatch.GetTimestamp();
 
-        public static SemaphoreSlim mySemaphore = new SemaphoreSlim(0);
+        public static SemaphoreSlim mySemaphoreProducer = new SemaphoreSlim(0);
+        public static SemaphoreSlim mySemaphoreConsumer = new SemaphoreSlim(0);
 
         public static List<LogEntry> logs = new List<LogEntry>();
 
@@ -22,6 +23,9 @@ namespace Produttore_e_consumatore
         public static Consumer consumer = new Consumer();
 
         public static LimitedQueue<int> lQueue = new LimitedQueue<int>(queueSize);
+
+        public static object lockObject = new object();
+
 
         public static void AddLog(string role, string message, int threadCount, int queueElements, string color)
         {
@@ -90,7 +94,7 @@ namespace Produttore_e_consumatore
                     log.Message,
                     log.QueueElements.ToString() + " / 6",
                     log.ThreadCount.ToString(),
-                    log.Ticks.ToString()  
+                    log.Ticks.ToString()
                 );
             }
 
@@ -112,7 +116,7 @@ namespace Produttore_e_consumatore
                     {
                         AddLog("Produttore", $"Mi addormento", countThreadWaiting, lQueue.Count, "green");
                         countThreadWaiting++;
-                        mySemaphore.Wait();
+                        mySemaphoreProducer.Wait();
                         AddLog("Produttore", $"Mi risveglio", countThreadWaiting, lQueue.Count, "green");
                     }
                     else
@@ -122,13 +126,17 @@ namespace Produttore_e_consumatore
 
                     var numberProduct = producer.GiveMeNumber();
                     AddLog("Produttore", $"Ho prodotto il numero: {numberProduct}", Program.countThreadWaiting, Program.lQueue.Count, "green");
-                    lQueue.Enqueue(numberProduct);
+
+                    lock (lockObject)
+                    {
+                        lQueue.Enqueue(numberProduct);
+                    }
 
                     if (countThreadWaiting > 0)
                     {
                         AddLog("Produttore", "Sto svegliando il consumatore", countThreadWaiting, lQueue.Count, "green");
                         countThreadWaiting--;
-                        mySemaphore.Release();
+                        mySemaphoreConsumer.Release();
                     }
 
                     //Thread.Sleep(150);
@@ -159,7 +167,7 @@ namespace Produttore_e_consumatore
                     {
                         AddLog("Consumatore", $"Mi addormento", countThreadWaiting, lQueue.Count, "yellow");
                         countThreadWaiting++;
-                        mySemaphore.Wait();
+                        mySemaphoreConsumer.Wait();
                         AddLog("Consumatore", $"Mi risveglio", countThreadWaiting, lQueue.Count, "yellow");
                     }
                     else
@@ -167,15 +175,18 @@ namespace Produttore_e_consumatore
                         AddLog("Consumatore", $"Ci sono elementi nella coda per me", countThreadWaiting, lQueue.Count, "yellow");
                     }
 
-                    var number = lQueue.Dequeue();
-                    Program.AddLog("Consumatore", $"Ho consumato il numero: {number}", Program.countThreadWaiting, Program.lQueue.Count, "yellow");
-                    consumer.ConsumeNumber(number);
+                    lock (lockObject)
+                    {
+                        var number = lQueue.Dequeue();
+                        Program.AddLog("Consumatore", $"Ho consumato il numero: {number}", Program.countThreadWaiting, Program.lQueue.Count, "yellow");
+                        consumer.ConsumeNumber(number);
+                    }
 
                     if (countThreadWaiting > 0)
                     {
                         AddLog("Consumatore", "Sto svegliando il produttore", countThreadWaiting, lQueue.Count, "yellow");
                         countThreadWaiting--;
-                        mySemaphore.Release();
+                        mySemaphoreProducer.Release();
                     }
 
                     //Thread.Sleep(150);
@@ -189,6 +200,8 @@ namespace Produttore_e_consumatore
             }
 
             AddLog("Consumatore", $"Ho fatto {nSeconds} secondi e finito di consumare dati", countThreadWaiting, lQueue.Count, "yellow");
+
+
         }
 
     }
@@ -202,7 +215,7 @@ namespace Produttore_e_consumatore
         int _countNumberGenerator = 0;
         public int GiveMeNumber()
         {
-            int i = _random.Next(100);            
+            int i = _random.Next(100);
             _count = _count + i;
             _countNumberGenerator++;
             return i;
@@ -224,7 +237,7 @@ namespace Produttore_e_consumatore
         int _countNumberConsumer = 0;
         public void ConsumeNumber(int number)
         {
-            _numbers.Add(number);            
+            _numbers.Add(number);
             _countConsumer += number;
             _countNumberConsumer++;
         }
